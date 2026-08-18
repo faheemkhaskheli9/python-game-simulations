@@ -1,0 +1,5 @@
+[project]
+name = "python-game-simulations"
+version = "0.1.0"
+description = "RPG / Game Simulation Projects (Umbrella)"
+requires-python = ">=3.10"
