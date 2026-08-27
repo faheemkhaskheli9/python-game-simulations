@@ -1,1 +1,4 @@
-# Fill in with the exact package versions used once implementation starts.
+pygame>=2.5
+numpy>=1.26
+PyYAML>=6.0
+pytest>=8.0

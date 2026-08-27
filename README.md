@@ -4,7 +4,7 @@
 > This is an original, from-scratch build. It is not affiliated with, and does not
 > contain any code, prompts, data, or business logic from, any employer or client.
 
-![status](https://img.shields.io/badge/status-planned-lightgrey)
+![status](https://img.shields.io/badge/status-in%20progress-yellow)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
@@ -79,10 +79,21 @@ No proprietary, employer-owned, or client-identifiable data is used in this proj
 
 ## 9. Training / Execution
 
-Document the commands used to run training, ingestion, or the main pipeline, e.g.:
+### Phase 1 — 2D RPG prototype
 
 ```bash
-python -m src.main --config configs/default.yaml
+python src/rpg_prototype.py                                  # default map
+python src/rpg_prototype.py --config configs/rpg_prototype.yaml
+```
+
+Controls: arrow keys or WASD to move, Esc or the window close button to quit.
+The map is an ASCII grid (`#` wall, `.` floor, `@` player start); movement is
+continuous with axis-separated collision so the player slides along walls.
+
+Headless smoke test (no window, used in CI):
+
+```bash
+SDL_VIDEODRIVER=dummy python src/rpg_prototype.py --max-frames 30
 ```
 
 ## 10. Evaluation
