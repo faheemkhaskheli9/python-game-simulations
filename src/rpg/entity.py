@@ -35,6 +35,9 @@ class Player:
     y: float
     size: int = 24
     speed: float = 120.0  # pixels per second at full input
+    health: int = 100
+    max_health: int = 100
+    attack_power: int = 15
 
     @property
     def rect(self) -> tuple[float, float, int, int]:
@@ -43,6 +46,10 @@ class Player:
     @property
     def center(self) -> tuple[float, float]:
         return (self.x + self.size / 2, self.y + self.size / 2)
+
+    @property
+    def is_alive(self) -> bool:
+        return self.health > 0
 
     def move(self, dx: float, dy: float, tile_map: TileMap, dt: float = 1.0) -> tuple[float, float]:
         """Attempt to move by direction (dx, dy), each in roughly [-1, 1].

@@ -10,6 +10,7 @@ the loop with no real window (CI / headless smoke test) together with
 
 from __future__ import annotations
 
+from .combat import Enemy, resolve_attack
 from .entity import Player
 from .tilemap import TileMap
 
@@ -17,6 +18,8 @@ _BG = (18, 18, 22)
 _WALL_COLOR = (68, 68, 92)
 _FLOOR_COLOR = (38, 38, 46)
 _PLAYER_COLOR = (222, 184, 64)
+_ENEMY_COLOR = (200, 64, 64)
+_ENEMY_DEFEATED_COLOR = (80, 80, 80)
 
 
 class RPGGame:
@@ -31,6 +34,7 @@ class RPGGame:
         start_x, start_y = tile_map.player_start_px()
         inset = max(0, (tile_map.tile_size - 24) // 2)
         self.player = Player(x=start_x + inset, y=start_y + inset)
+        self.enemies: list[Enemy] = self._spawn_enemies()
         self.caption = caption
         self.max_frames = max_frames
 
@@ -39,6 +43,27 @@ class RPGGame:
         self._pg = None
         self._screen = None
         self._clock = None
+        self._attack_key_was_down = False
+
+    def _spawn_enemies(self) -> list[Enemy]:
+        """Place one enemy on the tile furthest (by tile distance) from the player start."""
+        px, py = self.tile_map.player_start_px()
+        best = None
+        best_dist = -1.0
+        ts = self.tile_map.tile_size
+        for row in range(self.tile_map.n_rows):
+            for col in range(self.tile_map.cols):
+                if self.tile_map.is_blocked(col, row):
+                    continue
+                x, y = col * ts, row * ts
+                dist = (x - px) ** 2 + (y - py) ** 2
+                if dist > best_dist:
+                    best_dist = dist
+                    best = (x, y)
+        if best is None:
+            return []
+        inset = max(0, (ts - 24) // 2)
+        return [Enemy(x=best[0] + inset, y=best[1] + inset)]
 
     # -- lifecycle -----------------------------------------------------------
     def _ensure_backend(self):
@@ -87,9 +112,28 @@ class RPGGame:
 
     def _update(self, dt: float) -> None:
         pg = self._pg
-        dx, dy = self.input_vector(pg.key.get_pressed())
+        pressed = pg.key.get_pressed()
+        dx, dy = self.input_vector(pressed)
         if dx or dy:
             self.player.move(dx, dy, self.tile_map, dt)
+
+        attack_key_down = bool(pressed[pg.K_SPACE])
+        if attack_key_down and not self._attack_key_was_down:
+            self.try_player_attack()
+        self._attack_key_was_down = attack_key_down
+
+    def try_player_attack(self) -> None:
+        """Player attacks the nearest living enemy in range, if any."""
+        if not self.player.is_alive:
+            return
+        for enemy in self.enemies:
+            if enemy.is_alive:
+                resolve_attack(self.player, enemy)
+                break
+
+        for enemy in self.enemies:
+            if enemy.is_alive:
+                resolve_attack(enemy, self.player)
 
     def _render(self) -> None:
         pg = self._pg
@@ -99,6 +143,10 @@ class RPGGame:
             for col in range(self.tile_map.cols):
                 color = _WALL_COLOR if self.tile_map.is_blocked(col, row) else _FLOOR_COLOR
                 pg.draw.rect(self._screen, color, (col * ts, row * ts, ts - 1, ts - 1))
+        for enemy in self.enemies:
+            ex, ey, ew, eh = enemy.rect
+            color = _ENEMY_COLOR if enemy.is_alive else _ENEMY_DEFEATED_COLOR
+            pg.draw.rect(self._screen, color, (int(ex), int(ey), ew, eh))
         px, py, pw, ph = self.player.rect
         pg.draw.rect(self._screen, _PLAYER_COLOR, (int(px), int(py), pw, ph))
         pg.display.flip()
