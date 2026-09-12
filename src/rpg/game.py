@@ -12,7 +12,12 @@ from __future__ import annotations
 
 from .combat import Enemy, resolve_attack
 from .entity import Player
+from .survival import SurvivalStats
 from .tilemap import TileMap
+
+# Sprinting (held Shift) moves faster but drains stamina; it is silently
+# downgraded to a normal walk once stamina hits zero.
+SPRINT_SPEED_MULTIPLIER = 1.8
 
 _BG = (18, 18, 22)
 _WALL_COLOR = (68, 68, 92)
@@ -34,6 +39,7 @@ class RPGGame:
         start_x, start_y = tile_map.player_start_px()
         inset = max(0, (tile_map.tile_size - 24) // 2)
         self.player = Player(x=start_x + inset, y=start_y + inset)
+        self.survival = SurvivalStats()
         self.enemies: list[Enemy] = self._spawn_enemies()
         self.caption = caption
         self.max_frames = max_frames
@@ -113,9 +119,29 @@ class RPGGame:
     def _update(self, dt: float) -> None:
         pg = self._pg
         pressed = pg.key.get_pressed()
+
+        resting = bool(pressed[pg.K_r])
+        sprinting = bool(pressed[pg.K_LSHIFT] or pressed[pg.K_RSHIFT]) and self.survival.can_sprint
+        if resting:
+            self.survival.rest(dt)
+        else:
+            self.survival.tick(dt, sprinting=sprinting)
+        self.player.health = self.survival.apply_starvation_damage(dt, self.player.health)
+
+        if pressed[pg.K_e]:
+            self.survival.eat()
+        if pressed[pg.K_q]:
+            self.survival.drink()
+
         dx, dy = self.input_vector(pressed)
         if dx or dy:
-            self.player.move(dx, dy, self.tile_map, dt)
+            original_speed = self.player.speed
+            if sprinting:
+                self.player.speed = original_speed * SPRINT_SPEED_MULTIPLIER
+            try:
+                self.player.move(dx, dy, self.tile_map, dt)
+            finally:
+                self.player.speed = original_speed
 
         attack_key_down = bool(pressed[pg.K_SPACE])
         if attack_key_down and not self._attack_key_was_down:
